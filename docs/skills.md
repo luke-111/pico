@@ -1,13 +1,13 @@
 # Skills
 
-Skill 是一段写在 markdown 文件里的可复用 prompt，可以通过 `/skill-name [args]` 调用。pico 把它展开成一次普通 session 请求，沿用同一套工具、审批和事件链路。
+Skill 是写在 markdown 文件里的一段可复用 prompt，用 `/skill-name [args]` 调用。pico 把它展开成一次普通的 session 请求，走同一套工具、审批和事件链路。
 
 ## 内置 skill
 
-- `/review` — 代码审查当前改动
-- `/test` — 跑测试、整理失败原因
-- `/commit` — 准备 commit 消息和拆分建议
-- `/simplify` — 找代码冗余并修
+- `/review`：审查当前改动
+- `/test`：跑测试，整理失败原因
+- `/commit`：准备 commit 消息和拆分建议
+- `/simplify`：找出代码冗余并修掉
 
 ```bash
 pico
@@ -18,15 +18,15 @@ pico
 
 ## 加载顺序
 
-后加载的同名 skill 覆盖前面的：
+同名 skill 后加载的覆盖先加载的：
 
-1. **内置 skill** — pico 自带
-2. **用户 skill** — `~/.pico/skills/<name>/SKILL.md`
-3. **项目 skill** — `<repo>/skills/<name>/SKILL.md` 或 `<repo>/.pico/skills/<name>/SKILL.md`
+1. **内置 skill**：pico 自带
+2. **用户 skill**：`~/.pico/skills/<name>/SKILL.md`
+3. **项目 skill**：`<repo>/skills/<name>/SKILL.md` 或 `<repo>/.pico/skills/<name>/SKILL.md`
 
 ## 自定义一个 skill
 
-最小例子，新建 `~/.pico/skills/deploy/SKILL.md`：
+最小例子。新建 `~/.pico/skills/deploy/SKILL.md`：
 
 ```markdown
 ---
@@ -71,12 +71,12 @@ user-invocable: true           # 可选，是否允许用户从 REPL 直接调�
 
 ## context: inline vs fork
 
-- `inline`（默认）：skill 内容直接 append 到当前 session 的下一轮请求里。模型记得之前对话。
-- `fork`：起一个隔离 session 跑 skill，主 session 不受污染。适合"和当前对话无关的一次性查询"。
+- `inline`（默认）：skill 内容直接 append 到当前 session 的下一轮请求，模型能记得之前的对话。
+- `fork`：起一个隔离 session 跑 skill，主 session 不受影响。适合和当前对话无关的一次性查询。
 
 ## allowed-tools
 
-如果一个 skill 只需要只读分析（如 `/review`），可以加 `allowed-tools: read_file, search, list_files`，让 skill 调用时模型看不到 write/shell。提高执行安全。
+如果一个 skill 只需要只读分析，比如 `/review`，可以加 `allowed-tools: read_file, search, list_files`。这样 skill 调用时模型看不到 write 和 shell 工具，执行更安全。
 
 ## paths
 
@@ -90,6 +90,6 @@ paths: src/**/*.py, !src/legacy/**
 
 ## 调试
 
-- `/skills` 列出所有可用 skill 和加载来源
-- skill 执行时，事件流里会有 `skill_invoked` / `skill_finished`
-- 用 `disable-model-invocation: true` 配合 `pico --tui` 可以在不发请求的情况下预览 skill 展开后的 prompt
+- `/skills` 列出所有可用 skill 和它们的加载来源
+- skill 执行时，事件流里会有 `skill_invoked` 和 `skill_finished`
+- `disable-model-invocation: true` 配合 `pico --tui`，可以在不发请求的情况下预览 skill 展开后的 prompt

@@ -2,14 +2,14 @@
 
 ## Runner 定位
 
-`scripts/run_v3_human_scenario_gate.py` 是 Pico v3 真人场景 runner。它刻意走 Pico 的公开进程入口：
+`scripts/run_v3_human_scenario_gate.py` 是 v3 的真人场景 runner。它刻意只走 Pico 的公开进程入口：
 
 - one-shot CLI：`uv run pico --cwd <workspace> "<prompt>"`
 - REPL：`uv run pico --cwd <workspace> --repl`
 - PTY-style stdin：模拟用户逐行输入 slash command
 - TTY smoke：验证默认 TTY 入口能进入 TUI
 
-runner 不 import `Pico`，也不直接调用 runtime 方法。它只创建临时 workspace、启动 Pico 进程、收集 stdout/stderr，然后读取 Pico 自己写出的 `.pico` artifacts。
+runner 不 import `Pico`，也不直接调 runtime 方法。它只创建临时 workspace、启动 Pico 进程、收集 stdout 和 stderr，然后读 Pico 自己写出的 `.pico` artifacts。
 
 ## 输出目录
 

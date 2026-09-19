@@ -1,24 +1,24 @@
 # Pico learning 阅读索引
 
-这个目录把 Pico 当成一个本地 coding agent harness 来读，不按源码文件逐个翻译，也不把它写成 Agent 概念科普。读法只有一个目标：看清每个模块在整条执行链里解决什么问题，以及它和 Claude Code 这类成熟系统相比差在哪里。
+我把这个目录写成面试时能直接讲出来的一套材料。它不逐个翻译源码文件，也不讲 Agent 的概念科普。我的目标只有一个：把每个模块在整条执行链里解决的问题讲清楚，同时说明它和 Claude Code 这类成熟系统的差距在哪里。
 
 ![Pico learning 阅读路线](assets/00-reading-map.png)
 
-参考口径有两类。
+我引用的材料有两类。
 
 - Pico 当前源码：以 `pico/`、`tests/`、`release/v3/REVIEW.md` 为准。
-- Claude Code 对标：参考 `/Users/martinlos/code/civil-engineering-cloud-claude-code-source-v2.1.88/02-claude-code-source-research/`。这份材料是本地研究快照，不按官方源码口径宣传，只把它当成架构参照物。
+- Claude Code 对标：参考 `/Users/martinlos/code/civil-engineering-cloud-claude-code-source-v2.1.88/02-claude-code-source-research/`。这是我本地做的一份研究快照，不代表官方口径，我只把它当架构参照物用。
 
 ## 阅读顺序
 
-如果只想快速建立全局图，先读：
+想先建立全局图，读这四篇：
 
 1. `01-overall-architecture.md`
 2. `02-runtime-engine.md`
 3. `03-context-memory-compact.md`
 4. `04-tools-permissions-sandbox.md`
 
-如果要准备面试追问，继续读：
+要准备面试追问，继续读：
 
 5. `05-workers-plan-todo.md`
 6. `06-providers-config.md`
@@ -26,11 +26,11 @@
 8. `08-session-run-evaluation.md`
 9. `09-module-map.md`
 
-如果想按“模块为什么存在”的方式读，补一篇：
+想按“这个模块为什么要存在”的顺序理解，补一篇：
 
 10. `10-module-learning-guide.md`
 
-如果想单独理解后台长期记忆整理，继续读：
+想单独理解后台长期记忆整理，再读一篇：
 
 11. `11-dream-memory-consolidation.md`
 
@@ -83,10 +83,10 @@ Engine.run_turn()
 
 ## 和 Claude Code 的关系
 
-这套文档不按最小 agent 教学路线展开。Pico 已经越过最小 loop，重点在运行时治理：状态、恢复、上下文预算、工具边界、子 agent、评测工件。
+这套文档不走最小 agent 的教学路线。Pico 已经越过了最小 loop，我关注的是运行时治理：状态、恢复、上下文预算、工具边界、子 agent、评测工件。
 
-Claude Code 是更大的参照物。它有完整的 TypeScript/Ink 产品壳、几十个工具、MCP、插件、技能、bridge、remote、团队记忆、自动压缩和实验控制面。Pico 不需要复制它的体量，但应该学习它的几个工程判断：prompt 是运行时资产，tool 是协议，memory 要分寿命，API 层要承担可靠性，评测和实验要成为控制面。
+Claude Code 是我的主要参照物。它有完整的 TypeScript/Ink 产品壳、几十个工具、MCP、插件、技能、bridge、remote、团队记忆、自动压缩和实验控制面。Pico 不需要复制这个体量，但我从它身上学了几个工程判断：prompt 是运行时资产，tool 是协议，memory 要按寿命分层，API 层要自己承担可靠性，评测和实验要做成控制面。
 
 ## 当前结论
 
-Pico 的价值在于先闭合本地 coding agent 需要的几条链：请求能进入主循环，主循环能调用模型和工具，工具有边界，状态能落盘，历史能压缩，记忆能跨 session 留住，run 能被复盘，benchmark 能做回归。它距离 Claude Code 的平台复杂度还很远，但作为一个面试和学习用的本地 harness，架构骨架已经成立。
+Pico 的价值在于先把本地 coding agent 需要的几条链闭合：请求能进主循环，主循环能调模型和工具，工具有边界，状态能落盘，历史能压缩，记忆能跨 session 留住，run 能被复盘，benchmark 能做回归。它离 Claude Code 的平台复杂度还很远。但作为一个我自己写的本地 harness，架构骨架已经立起来了。

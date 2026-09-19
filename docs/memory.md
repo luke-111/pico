@@ -1,10 +1,10 @@
 # 分层记忆 + Auto-dream
 
-pico 的记忆系统让 agent **跨 session 保持对项目的认知**。不是把整个对话历史塞回 prompt，而是分四层落地，每层有自己的生命周期。
+pico 的记忆系统让 agent **跨 session 保持对项目的认知**。它不把整段对话历史塞回 prompt，而是分四层落地，每层有自己的生命周期。
 
 ## 为什么需要分层
 
-把一次 session 的所有事都喂给下次对话——上下文会爆。完全不记——agent 永远是第一次见你。分层的想法是：
+把一次 session 的所有内容都喂给下次对话，上下文会爆。完全不记，agent 每次都是第一次见你。分层的思路是：
 
 - **当前任务相关**：保留高保真，但只在本 session 内有效。
 - **长期可复用**：经过提炼，跨 session 持久化。
@@ -36,7 +36,7 @@ pico 的记忆系统让 agent **跨 session 保持对项目的认知**。不是�
 
 ## 4 类 durable topic
 
-dream 整合时只往这四个文件里写：
+dream 整合时只写这四个文件：
 
 - `user-preferences` — 用户的角色、知识水平、协作偏好
 - `project-conventions` — 仓库约定、构建工具、命名风格
@@ -45,30 +45,30 @@ dream 整合时只往这四个文件里写：
 
 ## 写入路径
 
-### `/remember <text>` — 一行写入 daily log
+### `/remember <text>`：一行写入 daily log
 
 ```text
 > /remember 这个项目用 pytest 不用 unittest，并发测试用 pytest-xdist
 Saved to daily log.
 ```
 
-### `<memory>...</memory>` — agent 在 final answer 里自动追加
+### `<memory>...</memory>`：agent 在 final answer 里自动追加
 
-模型在回答里裹一对 `<memory>` 标签，pico 自动 append 到当天的 daily log。
+模型在回答里包一对 `<memory>` 标签，pico 就把内容 append 到当天的 daily log。
 
-### 后台 auto-dream — 自动整合
+### 后台 auto-dream：自动整合
 
-满足以下条件后台触发：
+满足这三个条件时后台触发：
 
 - 距上次整合 >= 24 小时（`--dream-interval`）
 - 至少有 5 个新 session（`--dream-min-sessions`）
 - 当前没有正在跑的 dream
 
-后台启一个隔离的 pico 实例（write_scope 限制在 `.pico/memory/`），把 daily log + 最近 session ID 一起喂给模型，让它写 / 更新 topic 文件和 MEMORY.md。
+后台会起一个隔离的 pico 实例，write_scope 限制在 `.pico/memory/`，把 daily log 和最近的 session ID 一起交给模型，让它写入或更新 topic 文件和 MEMORY.md。
 
-### `/dream` — 手动触发
+### `/dream`：手动触发
 
-不想等后台：
+不想等后台的时候：
 
 ```text
 > /dream
@@ -79,8 +79,8 @@ Consolidation complete. Wrote 2 topic updates, refreshed index.
 
 每轮 prompt 自动注入两段：
 
-1. **memory section** — working memory + MEMORY.md 索引（让模型知道有哪些长期记忆可查）
-2. **relevant_memory section** — 根据当前用户请求做关键词检索，从 daily log 和 topic 里挑最相关的 3 条
+1. **memory section**：working memory 加 MEMORY.md 索引，让模型知道有哪些长期记忆可查
+2. **relevant_memory section**：按当前用户请求做关键词检索，从 daily log 和 topic 里挑最相关的 3 条
 
 模型也可以手动 `read_file .pico/memory/topics/<name>.md` 读完整 topic。
 
@@ -101,25 +101,25 @@ Consolidation complete. Wrote 2 topic updates, refreshed index.
 pico --no-auto-dream     # 只关 auto-dream，保留 /remember /dream
 ```
 
-或者在 toml / 启动时设 `feature_flags.memory = false`，但**不推荐**——这是 pico 区别于其他 coding agent 的核心能力。
+也可以在 toml 或启动时设 `feature_flags.memory = false`，但**不推荐**，这是 pico 区别于其他 coding agent 的核心能力。
 
 ## 文件级 freshness 保护
 
-在 patch_file / write_file 之前，pico 会检查"是否最近 read 过这个文件"（通过 sha256 freshness）。如果没读过就改，会被 `prior_read_required` 拒绝。这层保护和 memory feature flag **解耦**——即便 memory 关闭，read freshness 也仍然追踪，避免 agent 改盲文件。
+执行 patch_file 或 write_file 之前，pico 会用 sha256 freshness 检查这个文件最近有没有被 read 过。没读过就改，会被 `prior_read_required` 拒绝。这层保护和 memory feature flag **是解耦的**：即使关掉 memory，read freshness 仍然在追踪，避免 agent 改自己没看过的文件。
 
 ## 故障排查
 
 | 现象 | 原因 / 解决 |
 |------|-------------|
-| `/dream` 输出 `nothing to consolidate` | daily log 是空的，先 `/remember` 几条 |
-| auto-dream 不触发 | 检查 `.pico/memory/.consolidate-lock` 的 mtime，距上次 24h 没到 |
-| topic 文件没更新但 dream 说成功 | 早期版本的已知 bug，已在 2026-05 修复（freshness 追踪从 memory feature flag 解耦） |
-| MEMORY.md 太长 | dream 会自动裁剪到 200 行；手动 `/compact` 也可以 |
+| `/dream` 输出 `nothing to consolidate` | daily log 是空的，先用 `/remember` 写几条 |
+| auto-dream 不触发 | 看 `.pico/memory/.consolidate-lock` 的 mtime，距上次整合不到 24 小时 |
+| topic 文件没更新但 dream 说成功 | 早期版本的已知问题，2026-05 已修复，freshness 追踪不再依赖 memory feature flag |
+| MEMORY.md 太长 | dream 会自动裁到 200 行，也可以手动 `/compact` |
 
 ## 推荐的工作流
 
-1. 第一次进项目：让 pico 跑 `/skills`、看 README、用 `/remember` 写下 1-2 条该仓库的关键约定。
-2. 每天工作结束：`/dream` 一次，把当天观察沉淀。
-3. 切换分支或一段时间没用：直接 `pico --resume latest`，让它从工作记忆 + topic 里恢复上下文。
+1. 第一次进项目：让 pico 跑 `/skills`，看一遍 README，再用 `/remember` 写下 1 到 2 条这个仓库的关键约定。
+2. 每天收工：跑一次 `/dream`，把当天的观察沉淀下来。
+3. 切分支或者隔了一段时间再用：直接 `pico --resume latest`，让它从工作记忆和 topic 里恢复上下文。
 
-记忆只在本地，**不会上传**。删除 `.pico/memory/` 就回到第一次见你的状态。
+记忆只存在本地，**不会上传**。删掉 `.pico/memory/` 就回到第一次见你的状态。

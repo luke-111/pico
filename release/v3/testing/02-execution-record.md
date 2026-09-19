@@ -7,7 +7,7 @@
 
 ## 最终结论
 
-50 个真人使用场景已经用进程级 Pico 入口执行完成，最终结果为：
+50 个真人使用场景已经用进程级 Pico 入口跑完，结果是：
 
 - Human scenario full suite：`50 passed / 0 failed`
 - Runner 输出目录：`/private/tmp/pico-v3-human-scenarios/20260513-170838`
@@ -16,7 +16,7 @@
 - 代码验证：`uv run ruff check .` 通过
 - 回归测试：`uv run pytest tests -q` -> `224 passed, 2 skipped`
 
-这次不是只改测试代码。过程中暴露出的 runtime 行为问题已经修在产品代码里，runner 只承担“像人一样跑 Pico 并收集证据”的职责。
+这一轮我不是只改测试代码。过程中暴露的 runtime 行为问题都修在产品代码里，runner 只负责“像人一样跑 Pico 并收集证据”。
 
 ## 本次新增 / 修改
 
@@ -49,7 +49,7 @@
 | Todo / memory / context | S39-S45 | 7/7 passed |
 | Provider / recovery / safety | S46-S50 | 5/5 passed |
 
-关键证据统一落在最终输出目录下，每个场景至少保留：
+关键证据都落在最终输出目录下，每个场景至少保留：
 
 - `logs/<scenario>.command.json`
 - `logs/<scenario>.stdout.txt`
@@ -64,7 +64,7 @@
 
 现象：早期 runner 把 workspace 放在 repo 子目录时，Pico 向上发现 `/Users/martinlos/code/pico/.git`，导致场景文件可能写进真实项目。
 
-根因：`WorkspaceContext.build()` 会向上找 git root，测试 workspace 放在当前 repo 下会破坏隔离。
+根因：`WorkspaceContext.build()` 会向上找 git root，测试 workspace 放在当前 repo 下就会破坏隔离。
 
 处理：
 
@@ -76,7 +76,7 @@
 
 现象：plan mode 正确拒绝写非 active plan 文件后，DeepSeek 会重复同一个坏 `write_file`，直到 step limit。
 
-根因：重复调用守卫原先在 permission / policy 之后生效，重复的 permission/policy 拒绝没有被有效收口。
+根因：重复调用守卫原来在 permission 和 policy 之后才生效，重复的 permission/policy 拒绝没被收住。
 
 处理：
 
@@ -88,7 +88,7 @@
 现象一：S23 中 DeepSeek 已经 `write_file VALUE=False`、`patch_file False->True`，之后又重放同一个 `write_file VALUE=False`，把成功 patch 回滚。  
 现象二：直接把 `write_file/patch_file` 第二次同参调用全部拒绝后，S21 中“先被 prior_read_required 拒绝，补 `read_file` 后重试同一 patch”也被误拒。
 
-根因：重复调用规则只按“同参出现次数”判断，没有理解工具调用的状态语义。
+根因：重复调用规则只按“同参出现次数”判断，没考虑工具调用的状态语义。
 
 处理：
 
@@ -101,20 +101,20 @@
 
 现象：`/plan topic ../x.md` 类输入会抛出 `ValueError`，REPL 直接异常退出。
 
-根因：slash command handler 没有把 plan path 校验异常转换成用户可见错误。
+根因：slash command handler 没有把 plan path 的校验异常转成用户可见的错误。
 
 处理：`handle_repl_command()` 捕获 `ValueError`，返回 `error: plan path must stay under .pico/plans/`。
 
 ### 5. Runner 的 evidence 判断要读真实 artifacts
 
-现象：一些场景早期误判，原因包括：
+现象：一些场景早期出现误判，原因有几个：
 
 - trace 的工具名字段是 `name`，不是旧 harness 里的 `tool_name`。
 - 长 shell 输出 artifact 写在 `trace.jsonl` 的 `full_output_artifact`。
 - “没有启动模型 run”不能用 `.pico/runs` 目录是否存在判断，只能看是否存在 `run_*`。
 - REPL 输出里 session id 可能带 `pico>` prompt 前缀。
 
-处理：新增 `RunEvidence`，统一从真实 `.pico/runs` 和 `.pico/sessions` 读取证据，runner 不再散落 ad hoc JSON 读取逻辑。
+处理：新增 `RunEvidence`，统一从真实的 `.pico/runs` 和 `.pico/sessions` 读证据，runner 里不再散落各自的 JSON 读取逻辑。
 
 ## 最终验证命令
 

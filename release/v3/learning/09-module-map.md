@@ -1,6 +1,6 @@
 # 模块地图：每个源码文件属于哪一层
 
-这份地图不逐行翻译源码目录，只说明读 Pico 时每个文件该放在哪个系统问题下面。遇到追问时，先按层找文件，再回到具体实现。
+这份地图不逐行翻译源码目录，只说明每个文件该挂在哪个系统问题下面。面试被追问的时候，我先按层找文件，再回到具体实现。
 
 ![Pico 模块地图](assets/09-module-map.png)
 
@@ -116,7 +116,7 @@
 
 ## 测试文件怎么读
 
-测试可以按能力分组读：
+测试我按能力分组来读：
 
 - runtime 主循环：`tests/test_v3_runtime.py`、`tests/test_engine_acceptance.py`、`tests/test_runtime_evidence_acceptance.py`
 - context/memory：`tests/test_context_manager.py`、`tests/test_memory.py`、`tests/test_context_governance_acceptance.py`
@@ -127,4 +127,4 @@
 
 ## 一句话记忆
 
-如果只记一个地图：`core/` 管控制和状态，`tools/` 管动作，`features/` 管可插拔能力，`providers/` 管模型协议，`commands/cli/tui` 管用户入口，`evaluation/testing` 管证据。
+如果只记一句：`core/` 管控制和状态，`tools/` 管动作，`features/` 管可插拔能力，`providers/` 管模型协议，`commands/cli/tui` 管用户入口，`evaluation/testing` 管证据。

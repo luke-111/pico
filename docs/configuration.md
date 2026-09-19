@@ -8,11 +8,11 @@ CLI 显式参数 > 环境变量 > 项目 .pico.toml > 全局 ~/.config/pico/conf
 
 ## Provider profile
 
-provider 是 TOML 里的一段配置 profile，名字（如 `deepseek` `openai` `anthropic`）只用于人类辨识；真正决定走哪个协议的是 `protocol` 字段，目前支持 `openai` 和 `anthropic` 两种。
+provider 是 TOML 里的一段配置 profile。profile 名（`deepseek`、`openai`、`anthropic`）只用来给人辨认，真正决定走哪个协议的是 `protocol` 字段，目前支持 `openai` 和 `anthropic`。
 
 ### .pico.toml 示例
 
-放在仓库根目录，**不要提交真实 key**（默认已被 `.gitignore` 忽略）：
+放在仓库根目录。**不要提交真实 key**，默认已经在 `.gitignore` 里：
 
 ```toml
 provider = "deepseek"
@@ -46,7 +46,7 @@ pico --provider anthropic --model claude-opus-4-6
 
 ## 环境变量
 
-不写 toml 也能跑——只设环境变量即可：
+不写 toml 也能跑，只设环境变量就行：
 
 | 变量 | 用途 |
 |------|------|
@@ -60,7 +60,7 @@ pico --provider anthropic --model claude-opus-4-6
 
 ## 全局配置
 
-`~/.config/pico/config.toml` 适合放跨项目都用的 provider profile。项目 `.pico.toml` 覆盖它，CLI 参数再覆盖项目。
+`~/.config/pico/config.toml` 适合放跨项目通用的 provider profile。项目 `.pico.toml` 覆盖它，CLI 参数再覆盖项目配置。
 
 ## CLI 参数
 

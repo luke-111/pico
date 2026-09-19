@@ -17,7 +17,7 @@ pico 跑在本地仓库里，接上一个模型 provider，就能读代码、跑
 
 ## pico 是什么
 
-pico 是一个本地终端里的 coding agent，运行在你的仓库上下文里。一次 agent 运行会被拆成几个可观察的部分：
+pico 是一个跑在本地终端里的 coding agent，工作在你的仓库上下文里。一次运行会被拆成几个可观察的部分：
 
 - **provider profile**：决定调用哪个模型、哪个 endpoint、用什么协议。
 - **context**：把系统提示、仓库信息、skills、记忆和最近对话装进 prompt。
@@ -26,11 +26,11 @@ pico 是一个本地终端里的 coding agent，运行在你的仓库上下文�
 - **session / run evidence**：对话、事件流、trace、report 都写到本地 `.pico/`。
 - **memory / dream**：把 daily log 整理成长期 topic，下次 session 可以继续用。
 
-pico 关注本地 coding agent 的工程边界：配置清楚、任务能续接、结果能复盘。
+pico 关注的是本地 coding agent 的工程边界：配置要清楚，任务要能续接，结果要能复盘。
 
 ## 界面
 
-TUI 直接连接同一个 runtime。输入框、工具结果、状态栏、slash command 和补全都来自当前 session。
+TUI 连的是同一个 runtime。输入框、工具结果、状态栏、slash command 和补全都来自当前 session。
 
 | 工具和子 agent | Skills、help 和命令补全 |
 | --- | --- |
@@ -42,7 +42,7 @@ TUI 直接连接同一个 runtime。输入框、工具结果、状态栏、slash
 
 ## 安装
 
-要求：Python 3.10+，以及至少一个可用的模型 provider key。
+环境要求：Python 3.10 以上，以及至少一个可用的模型 provider key。
 
 一键安装：
 
@@ -66,7 +66,7 @@ uv run pico
 
 ## 配置 provider
 
-pico 启动前先解析一个 **provider profile**。一个 profile 主要由四项组成：
+pico 启动前会先解析一个 **provider profile**。一个 profile 有四项：
 
 | 字段 | 作用 |
 | --- | --- |
@@ -83,7 +83,7 @@ CLI 参数 > 环境变量 > 项目 .pico.toml > 全局 ~/.config/pico/config.tom
 
 ### 方式一：项目 `.pico.toml`
 
-这是最推荐的配置方式，适合每个仓库独立指定 provider：
+推荐用这种方式，适合每个仓库单独指定 provider：
 
 ```bash
 cp .pico.toml.example .pico.toml
@@ -116,13 +116,12 @@ base_url = "https://www.right.codes/claude/v1"
 model = "claude-sonnet-4-6"
 ```
 
-注意：`provider = "deepseek"` 只是选择 profile 名字，真正决定请求格式的是
-`protocol`。例如 DeepSeek 可以通过 Anthropic-compatible endpoint 使用，所以这里写
-`protocol = "anthropic"`。
+注意：`provider = "deepseek"` 只是选 profile 名，真正决定请求格式的是 `protocol`。
+DeepSeek 可以走 Anthropic-compatible endpoint，所以这里写 `protocol = "anthropic"`。
 
 ### 方式二：环境变量
 
-不想把 key 写进 TOML 时，用环境变量：
+不想把 key 写进 TOML 的话，用环境变量：
 
 ```bash
 export PICO_PROVIDER=deepseek
@@ -141,8 +140,8 @@ pico
 | OpenAI-compatible | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
 | Anthropic-compatible | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
 
-如果你的网关给 OpenAI-compatible 和 Anthropic-compatible 共用同一个 key，
-也可以设置 `PICO_RIGHT_CODES_API_KEY` 作为 fallback。
+如果你的网关让 OpenAI-compatible 和 Anthropic-compatible 共用同一个 key，
+可以设 `PICO_RIGHT_CODES_API_KEY` 作为 fallback。
 
 也可以用通用覆盖变量：
 
@@ -154,7 +153,7 @@ export PICO_MODEL=gpt-5.4
 
 ### 方式三：命令行临时覆盖
 
-临时换 provider 或模型：
+临时换 provider 或者模型：
 
 ```bash
 pico --provider openai --model gpt-5.4 --base-url https://api.openai.com/v1
@@ -188,7 +187,7 @@ pico --no-auto-dream              # 关闭后台 memory 整合
 
 ## 日常用法
 
-进入 TUI 或 REPL 后可以直接输入自然语言，也可以用 slash command：
+进 TUI 或 REPL 之后，可以直接输入自然语言，也可以用 slash command：
 
 ```text
 > /help
@@ -301,7 +300,7 @@ PICO_LIVE_SMOKE=1 pytest tests/test_release_smoke.py -q
 
 ### v3 学习文档
 
-按这个顺序读，能从整体架构一路落到模块和测试：
+按这个顺序读，能从整体架构一路落到模块和测试。
 
 | 顺序 | 文档 |
 | --- | --- |

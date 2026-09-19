@@ -1,14 +1,14 @@
 # Dream 后台记忆整合设计
 
-这篇主要回答一个问题：
+这篇回答一个问题：
 
-**`Pico` 的 Dream 功能到底在系统里解决什么问题，它现在怎么实现，和 Claude Code/Managed Agents 的 Dream 设计相比还差什么。**
+**Pico 的 Dream 功能在系统里解决什么问题，我现在怎么实现的，和 Claude Code、Managed Agents 的 Dream 设计相比还差什么。**
 
 先给结论。
 
-`Pico` 现在的 Dream 不是主循环里的思考步骤，也不是一个定时跑脚本的外壳。它更准确的定位是：**在用户请求结束之后，用一个受限的子 `Pico` 对 durable memory 做后台维护，把零散日志、旧 topic 文件和历史 session 里的稳定信号整理成下一次会话能读懂的长期记忆。**
+我这个 Dream 不是主循环里的思考步骤，也不是一个定时跑脚本的外壳。准确的定位是：**用户请求结束之后，用一个受限的子 Pico 对 durable memory 做后台维护，把零散日志、旧 topic 文件和历史 session 里的稳定信号，整理成下一次会话能读懂的长期记忆。**
 
-这件事的难点不在于让模型多总结几句话。
+难点不在于让模型多总结几句话。
 
 真正的难点有四个：
 
@@ -17,9 +17,9 @@
 3. 整理记忆不能阻塞用户当前任务。
 4. 旧记忆、重复记忆、矛盾记忆必须能被修正，而不是越积越乱。
 
-`Pico` 当前实现已经把这四个问题拆开了：用 `.pico/memory` 做文件型记忆目录，用 `MEMORY.md` 做入口索引，用 `logs/` 做 append-only 输入流，用 `topics/` 承接整理后的主题记忆，用 `.consolidate-lock` 控制自动整理节奏，再用一个 `dream` tool profile 和 `write_scope` 把 Dream 子运行时限制在记忆目录内。
+我现在的实现把这四个问题拆开了：`.pico/memory` 是文件型记忆目录，`MEMORY.md` 是入口索引，`logs/` 是 append-only 输入流，`topics/` 承接整理后的主题记忆，`.consolidate-lock` 控制自动整理的节奏，再用一个 `dream` tool profile 和 `write_scope` 把 Dream 子运行时锁在记忆目录内。
 
-这套实现已经很接近 Claude Code `autoDream` 的核心形态：后台 fork 一个受限 agent，让它读 memory 和 transcripts，再更新 memory。差异也很明确：Claude Code 和 Anthropic Managed Agents 更强调异步任务生命周期、输出 memory store、取消/归档、UI 可观测性和更强的失败处理；`Pico` 当前更轻，直接在本地 memory 目录原地整理。
+这已经很接近 Claude Code `autoDream` 的核心形态：后台 fork 一个受限 agent，让它读 memory 和 transcripts，再更新 memory。差异也很明确。Claude Code 和 Anthropic Managed Agents 更强调异步任务生命周期、输出 memory store、取消和归档、UI 可观测性，以及更强的失败处理。我这边更轻，直接在本地 memory 目录原地整理。
 
 ---
 
@@ -27,7 +27,7 @@
 
 如果只看功能表，`/remember` 已经能保存长期记忆，`<memory>...</memory>` 也能把 final answer 里的内容写进 daily log。那为什么还需要 Dream？
 
-因为保存和整理是两件不同的事。
+因为保存和整理是两件事。
 
 `/remember` 解决的是入口问题：当前这一刻有什么东西值得记下来。它适合记录用户明确要求保存的偏好、项目约定、外部资料位置，或者一次任务结束后值得沉淀的结论。
 
@@ -35,13 +35,13 @@ Dream 解决的是维护问题：这些记录过一段时间之后，怎么去�
 
 长期记忆如果没有后台整理，最后会变成三种坏状态。
 
-第一种是索引膨胀。`MEMORY.md` 越写越长，最后每次 session 启动都要带一大段内容。Claude Code 官方 memory 文档里也明确把 entrypoint 控制在前 200 行或 25KB 以内，详细内容放到 topic 文件里按需读取。`Pico` 沿用了这个方向，`MEMORY.md` 是索引，不是知识正文。
+第一种是索引膨胀。`MEMORY.md` 越写越长，最后每次 session 启动都要带一大段内容。Claude Code 官方 memory 文档里也明确把 entrypoint 控制在前 200 行或 25KB 以内，详细内容放到 topic 文件里按需读取。我沿用了这个方向，`MEMORY.md` 是索引，不是知识正文。
 
 第二种是重复和矛盾。用户今天说用 `uv`，后来改成 `pipx`，如果只追加不整理，未来模型同时看到两个版本，很容易选错。Dream 的价值是回到源文件修正旧事实，而不是再补一条新事实。
 
 第三种是瞬时状态污染长期记忆。当前目标、下一步、调试输出、失败栈、临时命令都很像有用信息，但它们通常不该活到下一周。当前代码里 `reject_durable_reason()` 已经显式过滤 secret-shaped 文本、checkpoint-like 前缀、长日志和 stdout/stderr/traceback 这类噪声；Dream prompt 也要求不要保存 transient task state。
 
-所以 Dream 的核心职责可以概括成一句话：
+所以 Dream 的核心职责就一句话：
 
 **把短期输入流里的稳定信号，整理成低噪声、可索引、可修正的长期记忆。**
 
@@ -49,7 +49,7 @@ Dream 解决的是维护问题：这些记录过一段时间之后，怎么去�
 
 ## 当前系统里 Dream 站在哪一层
 
-`Pico` 的记忆系统现在可以分成三层。
+我的记忆系统现在分三层。
 
 第一层是会话内工作记忆。
 
@@ -88,15 +88,15 @@ flowchart TD
 
 这张图里最重要的是运行时隔离。
 
-主 `Pico` 负责完成用户任务。Dream 子 `Pico` 负责整理 memory。两者复用 model client 和 session store，但子 `Pico` 的 feature flags 会关闭 `memory` 和 `relevant_memory`，tool profile 切到 `dream`，写入范围限制在 memory 目录。
+主 Pico 完成用户任务，Dream 子 Pico 整理 memory。两者复用 model client 和 session store，但子 Pico 的 feature flags 关掉了 `memory` 和 `relevant_memory`，tool profile 切到 `dream`，写入范围限制在 memory 目录。
 
-这个设计避免了一个常见问题：如果让主循环一边执行用户任务一边整理长期记忆，prompt 会变复杂，权限边界会变模糊，失败也难判断到底是用户任务失败还是记忆维护失败。
+这样能避开一个常见问题：主循环一边执行用户任务一边整理长期记忆时，prompt 会变复杂，权限边界会模糊，失败了也分不清是用户任务失败还是记忆维护失败。
 
 ---
 
 ## 数据模型：文件型 memory store
 
-`Pico` 当前选择的是文件型 durable memory，而不是数据库、向量库或一张 JSON 大表。
+我选的是文件型 durable memory，不是数据库、向量库或者一张 JSON 大表。
 
 默认目录是：
 
@@ -115,7 +115,7 @@ flowchart TD
 
 `ensure_memory_dir()` 会创建 `logs/`、`topics/` 和 `MEMORY.md`。如果索引不存在，默认写入一段空索引说明：`/remember` 写 daily log，`/dream` 把 logs 整理进 topic 文件。
 
-这个目录拆法有几个工程上的好处。
+这个拆法有几个工程上的好处。
 
 ### `MEMORY.md` 是启动索引
 
@@ -148,9 +148,9 @@ flowchart TD
 
 同时 memory system section 里要求结构化记忆文件使用 frontmatter：`name`、`description`、`type`，其中 `type` 只能是 `user`、`feedback`、`project`、`reference`。
 
-这里有一个值得注意的设计缝隙：默认 topic 名和 frontmatter type 是两套分类。
+这里有一个我自己也注意到的设计缝隙：默认 topic 名和 frontmatter type 是两套分类。
 
-这不是运行错误，但从设计上看还可以再收敛。topic 更像文件组织方式，type 更像语义类型。后续最好明确两者关系，例如：
+它不会导致运行错误，但设计上还能再收敛。topic 更像文件组织方式，type 更像语义类型。后面我想明确两者的关系，比如：
 
 - `topics/user-preferences.md` 主要承载 `type: user` 或 `type: feedback`
 - `topics/key-decisions.md` 主要承载 `type: project`
@@ -168,13 +168,13 @@ flowchart TD
 
 这个设计很 Unix：一个本地文件承载状态，不需要额外服务。
 
-代价也很清楚：如果 lock 文件被外部手动改动，时间门槛判断会被影响；如果进程异常退出，需要 stale holder 逻辑兜底。当前实现里 `HOLDER_STALE_S = 3600`，一小时内如果 holder pid 还活着就认为锁还被占用，超过或 pid 不存在则允许接管。
+代价也很清楚：如果 lock 文件被外部手动改动，时间门槛判断会被影响；如果进程异常退出，需要 stale holder 逻辑兜底。我这里 `HOLDER_STALE_S = 3600`，一小时内如果 holder pid 还活着就认为锁还被占用，超过或 pid 不存在则允许接管。
 
 ---
 
 ## 写入路径：哪些内容会进入 durable memory
 
-Dream 只负责整理，不应该承担所有写入入口。当前系统有三条进入 durable memory 的路径。
+Dream 只负责整理，不该承担所有写入入口。现在有三条路径进入 durable memory。
 
 ### `/remember <text>`
 
@@ -219,7 +219,7 @@ CLI 里 `/remember` 会调用 `agent.remember_durable_note(note)`，后者调用
 
 每轮都跑会带来三个问题：成本高、记忆还没形成足够增量、后台任务容易和用户下一轮交互抢资源。
 
-当前 `Pico` 用三个门槛控制自动触发。
+我用三个门槛控制自动触发。
 
 ### 时间门槛
 
@@ -251,7 +251,7 @@ CLI 里 `/remember` 会调用 `agent.remember_durable_note(note)`，后者调用
 
 这个 cap 是一个实际运行经验驱动的保护。
 
-session id 列表本身就会占上下文，transcript 检索也可能诱导模型读取过多历史。过去出现过 Dream prompt 因为 75+ session id 撑爆上下文导致 provider 返回 empty response 的风险，所以当前实现选择小批量处理。
+session id 列表本身就会占上下文，transcript 检索也可能诱导模型读取过多历史。过去出现过 Dream prompt 因为 75+ session id 撑爆上下文导致 provider 返回 empty response 的风险，所以我选了小批量处理。
 
 这也说明 Dream 不是越贪越好。长期记忆维护更适合增量、小批、可恢复。
 
@@ -259,9 +259,9 @@ session id 列表本身就会占上下文，transcript 检索也可能诱导模�
 
 ## Dream 子运行时怎么被限制住
 
-`run_dream()` 是当前功能最关键的函数。
+`run_dream()` 是这个功能里最关键的函数。
 
-它没有直接写一套单独的 summarizer，而是创建一个新的 `Pico` 实例：
+我没有另写一套 summarizer，而是创建一个新的 Pico 实例：
 
 - `model_client` 复用父 agent。
 - `workspace` 仍然是当前 repo。
@@ -274,9 +274,9 @@ session id 列表本身就会占上下文，transcript 检索也可能诱导模�
 - `auto_dream=False`，避免 Dream 里再触发 Dream。
 - `set_tool_profile("dream")`。
 
-这个选择的好处是复用现有 runtime、tool executor、permission checker、trace 和 model client。Dream 不需要另一套执行系统。
+这样能复用现有的 runtime、tool executor、permission checker、trace 和 model client，Dream 不需要另一套执行系统。
 
-但它也要求权限层必须足够硬。
+代价是权限层必须足够硬。
 
 ### tool profile 只给读和 memory 写
 
@@ -294,7 +294,7 @@ Dream 子 agent 的 `write_scope` 是 memory 目录相对 repo root 的路径。
 
 这是 Dream 设计里最重要的安全边界。
 
-如果没有这个边界，后台记忆整理任务就拥有了自动改仓库代码的能力。那样一旦 prompt 误导或模型误判，Dream 可能在用户没请求的时候改业务文件。当前实现没有这个问题。
+没有它，后台记忆整理任务就等于拿到了自动改仓库代码的能力。一旦 prompt 误导或者模型误判，Dream 就可能在用户没要求的时候动业务文件。现在的实现不存在这个口子。
 
 ### Dream 自己不加载 memory
 
@@ -317,7 +317,7 @@ Dream 的任务就是整理 memory。如果它在自己的 prompt 里又自动�
 3. Consolidate
 4. Prune and index
 
-这个结构基本对应一次人工整理记忆时的顺序。
+这个结构基本对应我自己人工整理记忆的顺序。
 
 ### Phase 1: Orient
 
@@ -374,21 +374,21 @@ Prompt 要求每个 entry 形如：
 1. 官方 Claude Code memory 文档。
 2. 本地 `civil-engineering-cloud-claude-code-source-v2.1.88/02-claude-code-source-research` 里的源码研究材料。后者应当按社区恢复/研究材料理解，不要在面试里说成官方完整内部源码。
 
-从设计形态看，`Pico` 当前 Dream 和 Claude Code 的 `autoDream` 有几处明显对齐。
+从设计形态看，我的 Dream 和 Claude Code 的 `autoDream` 有几处明显对齐。
 
 ### 对齐点一：Memory directory + entrypoint
 
 Claude Code auto memory 使用项目级 memory directory，里面有 `MEMORY.md` entrypoint 和多个 topic 文件。`MEMORY.md` 是启动索引，有行数和字节上限。
 
-`Pico` 也采用 `.pico/memory/MEMORY.md + topics/ + logs/`。
+我也用 `.pico/memory/MEMORY.md + topics/ + logs/`。
 
-这说明 `Pico` 没有把 memory 做成一段不断扩写的大 prompt，而是把 memory 当成一个可维护的本地文件系统。
+这说明 Pico 没有把 memory 做成一段不断扩写的大 prompt，而是把 memory 当成一个可维护的本地文件系统。
 
 ### 对齐点二：自动整理是后台 fork/fork-like agent
 
 Claude Code 源码研究材料里，`autoDream` 会在满足 gate 后创建后台任务，用受限工具集读取 memory 和 transcripts，再更新 memory。
 
-`Pico` 也是在主 turn 结束后启动 `pico-auto-dream` daemon thread，里面创建子 `Pico` 运行 `build_dream_prompt()`。
+我也是在主 turn 结束后启动 `pico-auto-dream` daemon thread，在里面创建子 Pico 跑 `build_dream_prompt()`。
 
 这背后的工程判断一致：用户任务和记忆维护要分开，整理失败不应该把用户任务变成失败。
 
@@ -396,7 +396,7 @@ Claude Code 源码研究材料里，`autoDream` 会在满足 gate 后创建后�
 
 Claude Code 的 `createAutoMemCanUseTool()` 允许读类工具，允许 memory 目录内的 Edit/Write，拒绝其他写入。
 
-`Pico` 的等价实现是 `dream` tool profile 加 `write_scope`。
+Pico 的等价实现是 `dream` tool profile 加 `write_scope`。
 
 这比只在 prompt 里写一句不要改别的文件要可靠。权限边界由 runtime enforce，不由模型自觉保证。
 
@@ -404,15 +404,15 @@ Claude Code 的 `createAutoMemCanUseTool()` 允许读类工具，允许 memory �
 
 Claude Code autoDream 默认也是约 24 小时、5 sessions，并使用 consolidation lock 记录 lastConsolidatedAt。
 
-`Pico` 采用 `dream_interval_hours=24.0`、`dream_min_sessions=5`、`.consolidate-lock` mtime。
+我用的是 `dream_interval_hours=24.0`、`dream_min_sessions=5`、`.consolidate-lock` mtime。
 
 这个选择说明 Dream 被当成低频维护任务，而不是每轮 summary。
 
 ---
 
-## 和 Claude Code 相比，Pico 现在少了什么
+## 和 Claude Code 相比，我现在少了什么
 
-当前实现已经有骨架，但还不是完整的 Dream 产品化形态。
+骨架有了，但还不是完整的 Dream 产品形态。
 
 ### 1. 手动 `/dream` 没有走同一把锁
 
@@ -428,7 +428,7 @@ CLI 里的 `/dream` 直接调用 `agent.run_dream()`。`run_dream()` 内部会�
 
 Claude Code 研究材料里有 `DreamTask`，负责 UI 状态、complete/fail/kill、rollback 等任务生命周期。
 
-`Pico` 当前只有后台 thread、session event bus、trace 和 `last_memory_maintenance`。这对 CLI harness 已经够用，但如果要做 TUI 或更强的可观测性，还缺一个任务对象：
+我现在只有后台 thread、session event bus、trace 和 `last_memory_maintenance`。对 CLI harness 够用，但要做 TUI 或更强的可观测性，还缺一个任务对象：
 
 - dream id
 - pending/running/completed/failed/canceled
@@ -444,7 +444,7 @@ Claude Code 研究材料里有 `DreamTask`，负责 UI 状态、complete/fail/ki
 
 Anthropic Managed Agents Dreams 的官方设计是：输入一个 existing memory store 和最多 100 个 sessions，Dream 异步生成一个新的 output memory store。输入 store 不被修改，用户可以审查输出后选择使用或丢弃。
 
-`Pico` 当前是在 `.pico/memory` 原地修改。
+我现在是在 `.pico/memory` 原地修改。
 
 原地修改适合本地 CLI：简单、直接、没有额外存储生命周期。缺点是回滚能力弱。虽然 git 可以帮 `.pico` 文件回滚，但 `.pico` 通常未必进版本控制。
 
@@ -462,7 +462,7 @@ Anthropic Managed Agents Dreams 的官方设计是：输入一个 existing memor
 
 Claude Code 研究材料里有更细的 gate 顺序和 scan 控制，避免频繁扫描和频繁失败。
 
-`Pico` 后续可以补两件事：
+我后面可以补两件事：
 
 - 记录最近一次 session scan 时间，短时间内直接复用结果。
 - 对连续失败的 Dream 做退避，避免每次满足 gate 都重复触发同一个 provider 错误。
@@ -471,7 +471,7 @@ Claude Code 研究材料里有更细的 gate 顺序和 scan 控制，避免频�
 
 Claude Code 除了 durable memory，还有 session memory、compact、extract memories 等不同维护层。
 
-`Pico` 当前有 `LayeredMemory`、context compaction 和 durable memory，但 Dream 直接面向 durable memory，暂时没有独立的 session memory markdown。
+我现在有 `LayeredMemory`、context compaction 和 durable memory，但 Dream 直接面向 durable memory，暂时没有独立的 session memory markdown。
 
 这不一定是缺陷。
 
@@ -483,7 +483,7 @@ Claude Code 除了 durable memory，还有 session memory、compact、extract me
 
 Anthropic Managed Agents 官方 Dreams 文档给出的定义很明确：Dream 让 Claude 回顾过去 sessions，整理 agent memory，清理重复、矛盾和过期条目，并输出一个新的 memory store。
 
-这对 `Pico` 有两个直接启发。
+这对 Pico 有两个直接启发。
 
 第一，Dream 应该被看作 memory store maintenance，而不是普通总结。
 
@@ -491,11 +491,11 @@ Anthropic Managed Agents 官方 Dreams 文档给出的定义很明确：Dream �
 
 第二，Dream 应该有异步任务生命周期。
 
-官方 Dreams 是 pending/running/completed/failed/canceled 的异步资源，可以 poll，可以看 usage，可以取消，可以归档。`Pico` 当前已经有后台线程和事件，但还没有把 Dream 暴露成一等资源。
+官方 Dreams 是 pending/running/completed/failed/canceled 的异步资源，可以 poll，可以看 usage，可以取消，可以归档。我已经有后台线程和事件，但还没把 Dream 暴露成一等资源。
 
-不过 `Pico` 不应该照搬 Managed Agents API。
+不过 Pico 不应该照搬 Managed Agents API。
 
-Managed Agents 是云端 API，Memory Store 是平台资源；`Pico` 是本地 coding harness，memory 是本地文件。照搬 output store、archive、billing、resource id 会让实现变重。
+Managed Agents 是云端 API，Memory Store 是平台资源；Pico 是本地 coding harness，memory 是本地文件。照搬 output store、archive、billing、resource id 会让实现变重。
 
 更合适的迁移方向是吸收它的三个工程原则：
 
@@ -507,13 +507,13 @@ Managed Agents 是云端 API，Memory Store 是平台资源；`Pico` 是本地 c
 
 ## 论文里的 memory 思路怎么映射到 Pico
 
-这部分不用把论文背成百科，只抓和 `Pico` Dream 相关的设计判断。
+这部分我不背论文细节，只抓和 Dream 相关的设计判断。
 
 ### ReAct：行动和判断要交替
 
 ReAct 的核心贡献是让 LLM 在任务中交替生成 reasoning traces 和 actions，通过外部环境获取信息，再更新计划和判断。
 
-`Pico` 主循环本身是 ReAct 风格：模型思考下一步，调用工具，读结果，再决定继续或结束。
+Pico 主循环本身就是 ReAct 风格：模型思考下一步，调用工具，读结果，再决定继续或结束。
 
 Dream 继承的是这个方法的后半部分：它不是让模型坐在 prompt 里凭记忆总结，而是给它读文件、搜索 transcript、patch memory 的工具，让它基于证据维护记忆。
 
@@ -523,24 +523,24 @@ Dream 继承的是这个方法的后半部分：它不是让模型坐在 prompt 
 
 Generative Agents 论文里有一个对 agent memory 很重要的结构：完整经验记录、基于时间的反思、动态检索，再用这些记忆去规划行为。
 
-`Pico` 当前没有做完整的 social simulation，也没有做复杂 planning。它借鉴的是更窄的一点：经验记录不能直接等于长期记忆，中间需要 reflection。
+我没有做完整的 social simulation，也没做复杂 planning。我借的是更窄的一点：经验记录不能直接等于长期记忆，中间需要 reflection。
 
-在 `Pico` 里：
+在我这里：
 
 - daily logs 类似经验输入流。
 - Dream 是 reflection pass。
 - `MEMORY.md` 和 topic files 是整理后的长期记忆。
 - ContextManager 在未来 session 把入口索引带回 prompt。
 
-也就是说，`Pico` 实现的是代码 agent 场景下的一小块反思机制，不是完整的生成式角色架构。
+也就是说，我实现的是代码 agent 场景下的一小块反思机制，不是完整的生成式角色架构。
 
 ### MemGPT：上下文窗口外要有层级记忆
 
 MemGPT 从操作系统的层级内存得到启发，把有限 context window 外的长上下文管理成不同 memory tiers。
 
-`Pico` 的实现更简单，没有虚拟内存式 paging，也没有 interrupt-based control flow。但它解决的是同一类压力：context window 有限，不能把所有历史都放进去。
+我的实现简单得多，没有虚拟内存式 paging，也没有 interrupt-based control flow。但它面对的是同一类压力：context window 有限，不能把所有历史都放进去。
 
-`Pico` 的做法是显式文件层级：
+我的做法是显式的文件层级：
 
 - 启动只加载 `MEMORY.md` 短索引。
 - 详细 topic 文件按需读取。
@@ -551,7 +551,7 @@ MemGPT 从操作系统的层级内存得到启发，把有限 context window 外
 
 ---
 
-## 当前实现的关键取舍
+## 我做的几个关键取舍
 
 ### 取舍一：文件系统优先，不先上数据库
 
@@ -575,13 +575,13 @@ MemGPT 从操作系统的层级内存得到启发，把有限 context window 外
 
 代价是 Dream 子 agent 仍然带着一个完整 runtime 的复杂度。它需要通过 feature flags 和 tool profile 被主动收窄，否则就会变成另一个普通 Pico。
 
-当前实现已经做了关键收窄：关闭 memory/relevant_memory，设置 `dream` profile，设置 `write_scope`，关闭 auto dream。
+关键的收窄我已经做了：关闭 memory/relevant_memory，设置 `dream` profile，设置 `write_scope`，关闭 auto dream。
 
 ### 取舍三：后台线程而不是外部 scheduler
 
 后台线程很轻，适合 CLI。用户拿到 final 后，Dream 继续整理，不需要单独守护进程。
 
-代价是生命周期跟当前进程绑定。如果 CLI 进程结束太快，daemon thread 可能还没跑完。当前实现更适合交互式 session，而不是严格保证每次都会完成的离线作业。
+代价是生命周期跟当前进程绑定。如果 CLI 进程结束太快，daemon thread 可能还没跑完。现在这个实现更适合交互式 session，不适合要求每次都必须跑完的离线作业。
 
 如果未来要保证 Dream 一定完成，就需要外部 job runner 或非 daemon thread 的显式等待策略。现在先保持轻量是合理的。
 
@@ -591,7 +591,7 @@ MemGPT 从操作系统的层级内存得到启发，把有限 context window 外
 
 但从可靠性看，两阶段输出更好。Managed Agents Dreams 选择输出新 store，就是为了让输入 store 不被直接破坏，用户可以审查后切换。
 
-`Pico` 如果继续面向面试和本地 harness，原地修改可以接受。要往更成熟的产品形态走，就应该考虑 `.dream-runs/<id>/output` 或 patch review 流程。
+如果 Pico 继续面向面试和本地 harness，原地修改可以接受。要往更成熟的产品形态走，就应该考虑 `.dream-runs/<id>/output` 或 patch review 流程。
 
 ### 取舍五：小批量 session cap
 
@@ -693,9 +693,9 @@ MemGPT 从操作系统的层级内存得到启发，把有限 context window 外
 
 ## 这个功能面试里怎么讲
 
-面试里不要把 Dream 讲成模型自动总结。
+不要把 Dream 讲成模型自动总结。
 
-更好的讲法是：
+我的讲法是：
 
 `Pico 的长期记忆不是每轮都把历史塞回 prompt，而是分成输入流和整理结果。/remember 和 <memory> 先把候选信息写进 daily log，Dream 在 turn 结束后按时间和 session 数触发，启动一个受限子 agent 去读 memory、logs 和必要的 transcripts，把稳定信号合并进 topic 文件，再维护 MEMORY.md 索引。这样既能跨 session 保存用户偏好和项目决策，又不会让 prompt 无限增长，也不会给后台任务开放任意写仓库的权限。`
 
@@ -709,13 +709,13 @@ MemGPT 从操作系统的层级内存得到启发，把有限 context window 外
 
 追问和 Claude Code/Managed Agents 的区别，可以这样说：
 
-`我参考的是它们的工程形态，不是照抄 API。Claude Code autoDream 也是后台受限 agent 加 memory 目录和 gate；Managed Agents Dreams 更像云端异步资源，会输出新的 memory store，输入 store 不直接修改。Pico 现在是本地 CLI harness，所以选择原地修改 .pico/memory，换来简单透明。后续如果要更产品化，可以补 DreamTask 生命周期和 output candidate store。`
+`我参考的是它们的工程形态，不是照抄 API。Claude Code autoDream 也是后台受限 agent 加 memory 目录和 gate；Managed Agents Dreams 更像云端异步资源，会输出新的 memory store，输入 store 不直接修改。Pico 是本地 CLI harness，所以我选了原地修改 .pico/memory，换来简单透明。后续如果要更产品化，可以补 DreamTask 生命周期和 output candidate store。`
 
 ---
 
 ## 后续改进路线
 
-这部分按优先级排。
+按优先级排。
 
 ### P0：统一手动和自动 Dream 的锁
 
@@ -827,7 +827,7 @@ Dream 写完后跑一个确定性检查：
 
 ## 最小验收清单
 
-当前 Dream 功能要算站得住，至少要覆盖这些测试和真实路径。
+Dream 这个功能要算站得住，至少得覆盖下面这些测试和真实路径。
 
 ### 单元测试
 
@@ -877,7 +877,7 @@ find .pico/memory -maxdepth 3 -type f | sort
 
 本设计主要参考这些材料：
 
-- 当前 `Pico` 代码：`pico/features/memory.py`、`pico/core/runtime.py`、`pico/core/tool_profiles.py`、`pico/core/permissions.py`、`pico/core/context_manager.py`、`pico/core/engine.py`、`pico/cli.py`。
+- 当前 Pico 代码：`pico/features/memory.py`、`pico/core/runtime.py`、`pico/core/tool_profiles.py`、`pico/core/permissions.py`、`pico/core/context_manager.py`、`pico/core/engine.py`、`pico/cli.py`。
 - 本地 Claude Code 研究材料：`/Users/martinlos/code/civil-engineering-cloud-claude-code-source-v2.1.88/02-claude-code-source-research`。这份材料用于理解 `memdir`、`extractMemories`、`autoDream`、`DreamTask` 等设计形态，面试里应按社区恢复/研究材料表述。
 - Anthropic Managed Agents Dreams 文档：`https://platform.claude.com/docs/en/managed-agents/dreams`。
 - Claude Code memory 文档：`https://code.claude.com/docs/en/memory`。
@@ -887,12 +887,12 @@ find .pico/memory -maxdepth 3 -type f | sort
 
 ---
 
-## 最后把一句话收回来
+## 最后收回到一句话
 
-`Pico` 的 Dream 功能可以这样定位：
+我给 Dream 的定位是：
 
 **它是本地 coding agent 的后台记忆维护层，用受限子运行时把跨 session 的零散信号整理成可索引、可修正、低噪声的长期记忆。**
 
-这个定位比模型自动总结更准确，也更能解释为什么代码里会有 memory directory、daily logs、topic files、entrypoint index、auto gate、lock、dream profile、write_scope 和后台线程。
+这个定位比“模型自动总结”准确，也更能解释代码里为什么会有 memory directory、daily logs、topic files、entrypoint index、auto gate、lock、dream profile、write_scope 和后台线程。
 
-当前实现已经把这条主线跑通。后面最值得补的不是更多 prompt，而是更硬的任务生命周期、更好的并发控制、结构化 report、memory lint，以及在需要时引入候选 output store。
+这条主线已经跑通了。后面最值得补的不是更多 prompt，而是更硬的任务生命周期、更好的并发控制、结构化 report、memory lint，以及在需要的时候引入候选 output store。

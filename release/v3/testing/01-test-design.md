@@ -2,9 +2,9 @@
 
 ## 结论
 
-v3 相对 `main` 不是一个小补丁，而是把 Pico 从一个单层 CLI agent 推到了本地 coding agent runtime harness：入口层多了 TUI/REPL/one-shot 的选择，控制层拆出了 Engine、run artifacts、session event bus、plan mode、worker manager，能力层多了 skills、todo、sandbox、provider profile、分层记忆和 auto-dream。
+v3 相对 `main` 不是一个小补丁。它把 Pico 从单层 CLI agent 推到了本地 coding agent runtime harness：入口层多了 TUI、REPL、one-shot 三种选择，控制层拆出了 Engine、run artifacts、session event bus、plan mode、worker manager，能力层多了 skills、todo、sandbox、provider profile、分层记忆和 auto-dream。
 
-所以这批测试不应该继续只走 `Pico(...)` 单元对象。它应该模拟人从终端打开 Pico、输入自然语言或 slash command、确认审批、退出、恢复 session，然后再检查 `.pico/sessions/`、`.pico/runs/`、工作区文件和终端/TUI 展示。
+所以这批测试不能继续只走 `Pico(...)` 单元对象。它要模拟人从终端打开 Pico、输入自然语言或 slash command、确认审批、退出、恢复 session，再检查 `.pico/sessions/`、`.pico/runs/`、工作区文件和终端或 TUI 的展示。
 
 本文档只设计场景，不实现 runner。
 
@@ -12,7 +12,7 @@ v3 相对 `main` 不是一个小补丁，而是把 Pico 从一个单层 CLI agen
 
 ### Building
 
-设计 50 个端到端场景，每个场景都从用户入口驱动 Pico：
+设计 50 个端到端场景，每个场景都从用户入口驱动 Pico。
 
 - Computer Use 操作 macOS Terminal / iTerm / Codex 内置终端里的 TUI。
 - PTY/expect 操作 `uv run pico --repl`，模拟键盘输入、回车、等待输出。
@@ -24,11 +24,11 @@ v3 相对 `main` 不是一个小补丁，而是把 Pico 从一个单层 CLI agen
 - 不写 pytest、runner、fixture、Computer Use 脚本。
 - 不跑 50 个场景。
 - 不提交真实 API key，不在文档里写密钥值。
-- 不把现有 unit tests 全部替换掉；这批场景是人机入口层的 acceptance 补充。
+- 不替换现有 unit tests。这批场景是人机入口层的 acceptance 补充。
 
 ## v3 改动面
 
-从当前 `v3` 分支对 `main` 的 diff 看，核心改动覆盖 111 个文件，约 12562 行新增、2310 行删除。场景设计按以下能力面覆盖：
+从 `v3` 分支对 `main` 的 diff 看，核心改动覆盖 111 个文件，新增约 12562 行，删除 2310 行。场景按下面这些能力面覆盖：
 
 | 改动面 | 代表模块 / 文档 | 必须覆盖的用户行为 |
 |---|---|---|
